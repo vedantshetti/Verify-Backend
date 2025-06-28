@@ -1,6 +1,22 @@
 require('dotenv').config();
 
 module.exports = {
-  GATEWAY_PORT: process.env.GATEWAY_PORT || 3000,
-  AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL || 'http://localhost:5001'
+  gateway: {
+    port: process.env.GATEWAY_PORT || 3000,
+    environment: process.env.NODE_ENV || 'development'
+  },
+  services: {
+    auth: {
+      url: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
+      timeout: 5000
+    }
+  },
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true
+  },
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100
+  }
 };

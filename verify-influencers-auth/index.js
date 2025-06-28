@@ -26,7 +26,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
@@ -50,8 +50,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// ✅ Express 5 compatible catch-all route
+app.all('/{*catchall}', (req, res) => {
   errorResponse(res, 'Route not found', 404);
 });
 
@@ -64,7 +64,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
-  logger.info(`Auth service running on port ${PORT}`);
+  console.log(`🚀 Auth service running on port ${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
 
 module.exports = app;
