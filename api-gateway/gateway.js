@@ -1,75 +1,39 @@
-// gateway.js
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Import configurations and middleware
+const config = require('./src/config');
+const routes = require('./src/routes');
+const errorHandler = require('./src/middlewares/errorHandler');
+const logger = require('./src/middlewares/logger');
 
 const app = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors(config.cors));
+
+// Rate limiting
+const limiter = rateLimit(config.rateLimit);
+app.use(limiter);
 
 // Body parsing middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    service: 'api-gateway',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
+// Custom middleware
+app.use(logger);
 
-// Proxy to auth microservice
-app.use('/api/v1/auth', createProxyMiddleware({
-  target: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
-  changeOrigin: true,
-  pathRewrite: { 
-    '^/api/v1/auth': '/api/auth' // Rewrite to match your auth service routes
-  },
-  onError: (err, req, res) => {
-    console.error('Proxy Error:', err.message);
-    res.status(503).json({
-      success: false,
-      message: 'Auth service unavailable',
-      timestamp: new Date().toISOString()
-    });
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`[PROXY] ${req.method} ${req.originalUrl} -> ${proxyReq.path}`);
-  }
-}));
+// Routes
+app.use('/', routes);
 
-// Default route
-app.get('/', (req, res) => {
-  res.json({
-    message: 'VerifyInfluencers API Gateway',
-    version: '1.0.0',
-    services: {
-      auth: process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
-    }
-  });
-});
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
-// ✅ Express 5 compatible catch-all route - MUST be named
-app.all('/{*catchall}', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-    path: req.originalUrl,
-    timestamp: new Date().toISOString()
-  });
-});
-
-const PORT = process.env.GATEWAY_PORT || 3000;
+const PORT = config.gateway.port;
 
 app.listen(PORT, () => {
   console.log(`🚀 API Gateway running on port ${PORT}`);
