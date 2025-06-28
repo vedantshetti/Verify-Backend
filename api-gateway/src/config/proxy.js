@@ -1,3 +1,4 @@
+// src/config/proxy.js
 const config = require('./index');
 
 const createProxyConfig = (serviceName) => {
@@ -11,17 +12,7 @@ const createProxyConfig = (serviceName) => {
     target: service.url,
     changeOrigin: true,
     timeout: service.timeout,
-    onProxyReq: (proxyReq, req, res) => {
-      console.log(`[${serviceName.toUpperCase()} PROXY] ${req.method} ${req.originalUrl} -> ${proxyReq.path}`);
-      
-      // Handle POST body forwarding
-      if (req.body && Object.keys(req.body).length > 0) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-      }
-    },
+    // ✅ Remove the custom onProxyReq - let fixRequestBody handle it
     onError: (err, req, res) => {
       console.error(`${serviceName} Service Proxy Error:`, err.message);
       res.status(503).json({
