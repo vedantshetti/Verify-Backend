@@ -2,9 +2,12 @@ const User = require("./auth.model");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const sendEmail = require("../../utils/sendEmail");
+const path = require("path");
+const fs = require("fs");
 
 class AuthService {
   async register({ username, email, password }) {
+    // Generate a secure email verification token
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");
     const user = new User({
       username,
@@ -14,13 +17,20 @@ class AuthService {
     });
     await user.save();
 
-    // Send verification email
+    // Prepare the verification URL
     const verifyUrl = `${process.env.BASE_URL}/api/auth/verify-email/${emailVerificationToken}`;
+
+    // Load and personalize the HTML email template
+    const templatePath = path.join(__dirname, "templates", "verifyEmail.html");
+    let html = fs.readFileSync(templatePath, "utf8");
+    html = html.replace("{{VERIFY_URL}}", verifyUrl);
+
+    // Send the verification email
     await sendEmail(
       email,
       "Verify your email",
       `Click to verify: ${verifyUrl}`,
-      `<a href="${verifyUrl}">Verify Email</a>`
+      html
     );
 
     return user;
