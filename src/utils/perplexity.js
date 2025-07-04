@@ -9,11 +9,11 @@ async function verifyClaimWithPerplexity(claimText) {
     { claim: claimText },
     { headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}` } }
   );
-  // Adjust the response parsing based on Perplexity's API docs
+  // Adjust parsing as per Perplexity's API response
   return {
-    status: response.data.status, // e.g., "verified", "debunked", "questionable"
-    confidence: response.data.confidence, // e.g., 0-100
-    references: response.data.references, // array of { journal, title, url }
+    status: response.data.status,
+    confidence: response.data.confidence,
+    references: response.data.references,
   };
 }
 
