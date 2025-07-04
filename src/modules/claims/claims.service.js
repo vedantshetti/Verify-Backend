@@ -1,6 +1,6 @@
 const Claim = require("./claims.model");
 const Influencer = require("../influencers/influencers.model");
-const { verifyClaimWithPerplexity } = require("../../utils/perplexity"); // Utility for Perplexity API
+const { verifyClaimWithOpenAI } = require("../../utils/perplexity"); // Utility for Perplexity API
 
 class ClaimsService {
   async list(query) {
@@ -28,13 +28,13 @@ class ClaimsService {
 
     // 2. Automatically verify with Perplexity
     try {
-      const result = await verifyClaimWithPerplexity(claim.content);
+      const result = await verifyClaimWithOpenAI(claim.content);
 
       // 3. Update claim with verification results
-      claim.verificationStatus = result.status; // "verified", "debunked", "questionable"
-      claim.confidenceScore = result.confidence; // 0-100
-      claim.trustScore = result.confidence; // You can use a custom formula if needed
-      claim.scientificReferences = result.references; // Array of { journal, title, url }
+      claim.verificationStatus = result.status;
+      claim.confidenceScore = result.confidenceScore;
+      claim.trustScore = result.trustScore;
+      claim.scientificReferences = result.scientificReferences;
       await claim.save();
 
       // 4. Optionally, update influencer's verifiedClaims and trustScore
@@ -43,9 +43,13 @@ class ClaimsService {
         if (influencer) {
           influencer.verifiedClaims = (influencer.verifiedClaims || 0) + 1;
           // Recalculate average trustScore
-          const claims = await Claim.find({ influencer: influencer._id, verificationStatus: "verified" });
+          const claims = await Claim.find({
+            influencer: influencer._id,
+            verificationStatus: "verified",
+          });
           const avgTrust = claims.length
-            ? claims.reduce((sum, c) => sum + (c.trustScore || 0), 0) / claims.length
+            ? claims.reduce((sum, c) => sum + (c.trustScore || 0), 0) /
+              claims.length
             : 0;
           influencer.trustScore = Math.round(avgTrust);
           await influencer.save();
@@ -91,15 +95,63 @@ class ClaimsService {
       const influencer = await Influencer.findById(claim.influencer);
       if (influencer) {
         influencer.verifiedClaims = (influencer.verifiedClaims || 0) + 1;
-        const claims = await Claim.find({ influencer: influencer._id, verificationStatus: "verified" });
+        const claims = await Claim.find({
+          influencer: influencer._id,
+          verificationStatus: "verified",
+        });
         const avgTrust = claims.length
-          ? claims.reduce((sum, c) => sum + (c.trustScore || 0), 0) / claims.length
+          ? claims.reduce((sum, c) => sum + (c.trustScore || 0), 0) /
+            claims.length
           : 0;
         influencer.trustScore = Math.round(avgTrust);
         await influencer.save();
       }
     }
 
+    return claim.populate("influencer");
+  }
+
+  async getOrVerifyClaim({
+    postId,
+    influencerId,
+    content,
+    category,
+    datePublished,
+    sourceLinks,
+  }) {
+    let claim = await Claim.findOne({ postId });
+    if (claim) return claim;
+
+    // Not in DB: verify with Perplexity
+    const result = await verifyClaimWithOpenAI(content);
+
+    claim = await Claim.create({
+      postId,
+      influencer: influencerId,
+      content,
+      category,
+      datePublished,
+      sourceLinks,
+      verificationStatus: result.status,
+      confidenceScore: result.confidenceScore,
+      trustScore: result.trustScore,
+      scientificReferences: result.scientificReferences,
+    });
+
+    // Optionally update influencer's trust score/verifiedClaims here
+
+    return claim;
+  }
+
+  async verifyWithOpenAI(claim) {
+    const result = await verifyClaimWithOpenAI(claim.content);
+
+    claim.verificationStatus = result.status;
+    claim.confidenceScore = result.confidenceScore;
+    claim.trustScore = result.trustScore;
+    claim.scientificReferences = result.scientificReferences;
+
+    await claim.save();
     return claim.populate("influencer");
   }
 }

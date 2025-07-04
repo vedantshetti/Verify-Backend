@@ -1,4 +1,3 @@
-// src/modules/claims/claims.model.js
 const mongoose = require("mongoose");
 
 const claimSchema = new mongoose.Schema(
