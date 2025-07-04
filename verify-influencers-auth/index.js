@@ -23,7 +23,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
+// app.use('/', routes);Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
@@ -67,5 +67,10 @@ app.listen(PORT, () => {
   console.log(`🚀 Auth service running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
+
+// After app.listen()
+console.log("🔑 Test Auth Endpoint: POST http://localhost:3001/api/auth/register");
+console.log("🔑 Test Gateway Endpoint: POST http://localhost:3000/api/v1/auth/register");
+
 
 module.exports = app;
