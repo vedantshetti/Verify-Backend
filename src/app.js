@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(passport.initialize());
 
 app.use('/api/auth', require('./modules/auth/auth.routes'));
-// ...other modules
+app.use('/api/influencers', require('./modules/influencers/influencers.routes'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'verify-backend', timestamp: new Date().toISOString() });
