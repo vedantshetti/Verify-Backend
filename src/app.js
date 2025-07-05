@@ -17,6 +17,7 @@ app.use(passport.initialize());
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/influencers', require('./modules/influencers/influencers.routes'));
 app.use('/api/claims', require('./modules/claims/claims.routes'));
+app.use('/api/analytics', require('./modules/analytics/analytics.routes'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'verify-backend', timestamp: new Date().toISOString() });
