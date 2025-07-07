@@ -39,3 +39,9 @@ exports.updateAllProfilesFromTwitter = async (req, res) => {
   await service.updateAllProfilesFromTwitter();
   res.json({ success: true, message: "All profiles updated from Twitter" });
 };
+
+
+exports.updateAllProfilesFromTwitter = async (req, res) => {
+  await service.updateAllProfilesFromTwitter();
+  res.json({ success: true, message: "All profiles updated from Twitter" });
+};
