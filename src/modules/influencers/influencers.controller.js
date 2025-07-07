@@ -33,3 +33,9 @@ exports.fetchAndStorePosts = async (req, res) => {
   const posts = await service.fetchAndStorePosts(req.params.id);
   res.json({ success: true, data: posts });
 };
+
+// NEW: Manual trigger for updating all profiles (optional endpoint)
+exports.updateAllProfilesFromTwitter = async (req, res) => {
+  await service.updateAllProfilesFromTwitter();
+  res.json({ success: true, message: "All profiles updated from Twitter" });
+};

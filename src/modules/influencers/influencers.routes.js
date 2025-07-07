@@ -9,4 +9,7 @@ router.put("/:id", controller.update);
 router.get("/:id/posts", controller.getPosts);
 router.post("/:id/fetch", controller.fetchAndStorePosts);
 
+// NEW: Optional route to manually trigger all-profiles update
+router.post("/update-all-twitter", controller.updateAllProfilesFromTwitter);
+
 module.exports = router;

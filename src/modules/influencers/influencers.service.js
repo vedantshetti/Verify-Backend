@@ -1,5 +1,5 @@
 const Influencer = require("./influencers.model");
-const { fetchRecentTweets } = require("./twitter");
+const { fetchTwitterProfile, fetchRecentTweets } = require("./twitter");
 
 class InfluencerService {
   async list(query) {
@@ -39,6 +39,24 @@ class InfluencerService {
     influencer.posts = tweets;
     await influencer.save();
     return tweets;
+  }
+
+  // NEW: Update influencer profile from Twitter
+  async updateProfileFromTwitter(influencer) {
+    const twitterData = await fetchTwitterProfile(influencer.handle);
+    influencer.image = twitterData.image;
+    influencer.bio = twitterData.bio;
+    influencer.followers = twitterData.followers;
+    await influencer.save();
+    return influencer;
+  }
+
+  // NEW: Update all influencers from Twitter (for cron job)
+  async updateAllProfilesFromTwitter() {
+    const influencers = await Influencer.find({});
+    for (const influencer of influencers) {
+      await this.updateProfileFromTwitter(influencer);
+    }
   }
 }
 
