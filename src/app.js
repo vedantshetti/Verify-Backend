@@ -5,6 +5,8 @@ const passport = require('passport');
 require('./config/passport');
 const connectDB = require('./config/database');
 const errorHandler = require('./middlewares/errorHandler');
+require("./cron");
+
 
 const app = express();
 connectDB();
