@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
 require('./config/passport');
 const connectDB = require('./config/database');
 const errorHandler = require('./middlewares/errorHandler');
@@ -11,9 +12,17 @@ require("./cron");
 const app = express();
 connectDB();
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize());
 
 app.use('/api/auth', require('./modules/auth/auth.routes'));
