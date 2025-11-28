@@ -61,6 +61,9 @@ class AnalyticsService {
     const verifiedClaims = await Claim.countDocuments({
       verificationStatus: "verified",
     });
+    const pendingClaims = await Claim.countDocuments({
+      verificationStatus: "questionable",
+    });
     const avgTrustScore = await Influencer.aggregate([
       { $group: { _id: null, avg: { $avg: "$trustScore" } } },
     ]);
@@ -68,6 +71,8 @@ class AnalyticsService {
       totalInfluencers,
       totalClaims,
       verifiedClaims,
+      pendingClaims,
+      avgTrustScore: avgTrustScore[0]?.avg || 0,
       averageTrustScore: avgTrustScore[0]?.avg?.toFixed(1) || 0,
     };
   }
