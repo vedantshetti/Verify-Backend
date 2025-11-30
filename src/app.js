@@ -1,9 +1,9 @@
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const passport = require('passport');
 const cookieParser = require('cookie-parser');
-require('./config/passport');
 const connectDB = require('./config/database');
 const errorHandler = require('./middlewares/errorHandler');
 require("./cron");
@@ -11,6 +11,9 @@ require("./cron");
 
 const app = express();
 connectDB();
+
+// Load passport configuration after dotenv
+require('./config/passport');
 
 // CORS configuration
 const corsOptions = {
