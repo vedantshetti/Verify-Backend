@@ -12,8 +12,8 @@ const claimSchema = new mongoose.Schema(
     category: { type: String },
     verificationStatus: {
       type: String,
-      enum: ["verified", "questionable", "debunked"],
-      default: "questionable",
+      enum: ["verified", "questionable", "debunked", "pending"],
+      default: "pending",
     },
     confidenceScore: { type: Number, min: 0, max: 100, default: 0 },
     trustScore: { type: Number, min: 0, max: 100, default: 0 },

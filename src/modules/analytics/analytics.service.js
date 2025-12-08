@@ -68,12 +68,15 @@ class AnalyticsService {
       { $group: { _id: null, avg: { $avg: "$trustScore" } } },
     ]);
     return {
+      activeInfluencers: totalInfluencers, // Total influencers in database
+      claimsVerified: verifiedClaims, // Claims that have been verified
+      averageTrustScore: avgTrustScore[0]?.avg?.toFixed(1) || "0.0",
+      // Additional stats
       totalInfluencers,
       totalClaims,
       verifiedClaims,
       pendingClaims,
       avgTrustScore: avgTrustScore[0]?.avg || 0,
-      averageTrustScore: avgTrustScore[0]?.avg?.toFixed(1) || 0,
     };
   }
 

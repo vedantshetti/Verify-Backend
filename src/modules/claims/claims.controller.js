@@ -93,3 +93,96 @@ exports.verifyOnDemand = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// NEW: Fetch all influencer posts and store as claims
+exports.fetchAllInfluencerPosts = async (req, res) => {
+  try {
+    const { maxPostsPerInfluencer } = req.body;
+    const results = await service.fetchAllInfluencerPosts(maxPostsPerInfluencer || 50);
+    
+    // Add helpful message about rate limits
+    if (results.rateLimitHit) {
+      results.message = "Rate limit reached. Please wait 15 minutes before fetching more posts.";
+    } else if (results.processedInfluencers < results.totalInfluencers) {
+      results.message = `Processed ${results.processedInfluencers} of ${results.totalInfluencers} influencers. Some failed due to rate limits.`;
+    } else {
+      results.message = "Successfully fetched posts from all influencers!";
+    }
+    
+    res.json({ success: true, data: results });
+  } catch (err) {
+    console.error("fetchAllInfluencerPosts error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// NEW: Fetch posts from a single influencer
+exports.fetchInfluencerPosts = async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+    const { maxPosts } = req.body;
+    
+    const Influencer = require("../influencers/influencers.model");
+    const { fetchRecentTweets } = require("../influencers/twitter");
+    
+    const influencer = await Influencer.findById(influencerId);
+    if (!influencer) {
+      return res.status(404).json({ success: false, message: "Influencer not found" });
+    }
+    
+    const tweets = await fetchRecentTweets(influencer.handle, maxPosts || 50);
+    
+    // Store posts
+    influencer.posts = tweets;
+    await influencer.save();
+    
+    // Create claims
+    let claimsCreated = 0;
+    let claimsUpdated = 0;
+    
+    for (const tweet of tweets) {
+      let claim = await service.list({ postId: tweet.id });
+      
+      if (claim && claim.length > 0) {
+        claim = claim[0];
+        claim.content = tweet.text;
+        claim.datePublished = new Date(tweet.createdAt);
+        await claim.save();
+        claimsUpdated++;
+      } else {
+        await service.create({
+          postId: tweet.id,
+          influencer: influencer._id,
+          content: tweet.text,
+          category: influencer.category || "Health",
+          datePublished: new Date(tweet.createdAt),
+          sourceLinks: [`https://twitter.com/${influencer.handle}/status/${tweet.id}`],
+          verificationStatus: "pending"
+        });
+        claimsCreated++;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        influencer: influencer.name,
+        postsFetched: tweets.length,
+        claimsCreated,
+        claimsUpdated
+      }
+    });
+  } catch (err) {
+    console.error("fetchInfluencerPosts error:", err);
+    
+    if (err.response && err.response.status === 429) {
+      return res.status(429).json({ 
+        success: false, 
+        message: "Twitter API rate limit exceeded. Please wait 15 minutes and try again.",
+        rateLimitReset: err.response.headers['x-rate-limit-reset']
+      });
+    }
+    
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
