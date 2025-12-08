@@ -40,8 +40,32 @@ exports.updateAllProfilesFromTwitter = async (req, res) => {
   res.json({ success: true, message: "All profiles updated from Twitter" });
 };
 
+// NEW: Fetch health influencers from Twitter and store in database
+exports.fetchAndStoreFromTwitter = async (req, res) => {
+  try {
+    const { keywords, category } = req.body;
+    const keywordList = keywords || ['health', 'nutrition', 'fitness', 'wellness', 'diet'];
+    const result = await service.fetchAndStoreHealthInfluencers(keywordList, category);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Error fetching influencers from Twitter",
+      error: err.message 
+    });
+  }
+};
 
-exports.updateAllProfilesFromTwitter = async (req, res) => {
-  await service.updateAllProfilesFromTwitter();
-  res.json({ success: true, message: "All profiles updated from Twitter" });
+// NEW: Fetch and analyze posts for an influencer
+exports.fetchAndAnalyzePosts = async (req, res) => {
+  try {
+    const result = await service.fetchAndAnalyzePosts(req.params.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Error fetching and analyzing posts",
+      error: err.message 
+    });
+  }
 };

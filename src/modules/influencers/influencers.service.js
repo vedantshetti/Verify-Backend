@@ -1,5 +1,5 @@
 const Influencer = require("./influencers.model");
-const { fetchTwitterProfile, fetchRecentTweets } = require("./twitter");
+const { fetchTwitterProfile, fetchRecentTweets, fetchHealthInfluencers } = require("./twitter");
 const delay = require("../../helpers/delay");
 
 class InfluencerService {
@@ -87,6 +87,78 @@ class InfluencerService {
         }
       }
     }
+  }
+
+  // NEW: Fetch health influencers from Twitter and store in database
+  async fetchAndStoreHealthInfluencers(keywords, category = "Health") {
+    const twitterUsers = await fetchHealthInfluencers(keywords);
+    const stored = [];
+    const errors = [];
+
+    for (const user of twitterUsers) {
+      try {
+        // Check if influencer already exists
+        let influencer = await Influencer.findOne({ handle: user.username });
+        
+        if (influencer) {
+          // Update existing influencer
+          influencer.name = user.name;
+          influencer.image = user.image;
+          influencer.bio = user.bio;
+          influencer.followers = user.followers;
+          await influencer.save();
+          stored.push({ action: 'updated', influencer });
+        } else {
+          // Create new influencer
+          influencer = await Influencer.create({
+            name: user.name,
+            handle: user.username,
+            image: user.image,
+            bio: user.bio,
+            followers: user.followers,
+            category: category,
+            socialLinks: {
+              twitter: `https://twitter.com/${user.username}`
+            }
+          });
+          stored.push({ action: 'created', influencer });
+        }
+        
+        await delay(500); // Rate limiting
+      } catch (error) {
+        console.error(`Error storing influencer ${user.username}:`, error.message);
+        errors.push({ username: user.username, error: error.message });
+      }
+    }
+
+    return {
+      success: true,
+      stored: stored.length,
+      created: stored.filter(s => s.action === 'created').length,
+      updated: stored.filter(s => s.action === 'updated').length,
+      errors: errors.length,
+      details: { stored, errors }
+    };
+  }
+
+  // NEW: Fetch posts for an influencer and analyze claims
+  async fetchAndAnalyzePosts(influencerId) {
+    const influencer = await Influencer.findById(influencerId);
+    if (!influencer) throw new Error("Influencer not found");
+
+    // Fetch recent tweets
+    const tweets = await fetchRecentTweets(influencer.handle, 100);
+    influencer.posts = tweets;
+    await influencer.save();
+
+    // TODO: Analyze tweets for health claims and verify them
+    // This would integrate with your claims verification system
+    
+    return {
+      influencer,
+      postsCount: tweets.length,
+      message: "Posts fetched successfully. Claim analysis pending."
+    };
   }
 }
 
