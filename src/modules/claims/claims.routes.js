@@ -10,4 +10,10 @@ router.post("/:id/verify", controller.verifyClaim);
 router.post("/verify-on-demand/:id", controller.verifyOnDemand);
 router.post("/get-or-verify", controller.getOrVerifyClaim);
 
+// NEW: Fetch all influencer posts and create claims
+router.post("/fetch-all-posts", controller.fetchAllInfluencerPosts);
+
+// NEW: Fetch posts from a single influencer
+router.post("/fetch-influencer-posts/:influencerId", controller.fetchInfluencerPosts);
+
 module.exports = router;

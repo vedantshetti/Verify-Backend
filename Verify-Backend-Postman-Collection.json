@@ -349,6 +349,67 @@
             "description": "Get existing claim or verify new one"
           },
           "response": []
+        },
+        {
+          "name": "Fetch All Influencer Posts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxPostsPerInfluencer\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/claims/fetch-all-posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "claims", "fetch-all-posts"]
+            },
+            "description": "Fetch latest posts from all influencers on Twitter and store them as claims. Recommended: 10 posts per influencer to avoid rate limits. Twitter Free API allows 50 requests per 15 minutes."
+          },
+          "response": []
+        },
+        {
+          "name": "Fetch Single Influencer Posts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxPosts\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/claims/fetch-influencer-posts/:influencerId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "claims", "fetch-influencer-posts", ":influencerId"],
+              "variable": [
+                {
+                  "key": "influencerId",
+                  "value": "influencer_id_here",
+                  "description": "Influencer ID from MongoDB"
+                }
+              ]
+            },
+            "description": "Fetch posts from a single influencer to better manage Twitter API rate limits. Use this when you want to fetch posts from specific influencers one at a time."
+          },
+          "response": []
         }
       ]
     },

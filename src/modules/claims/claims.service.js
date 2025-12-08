@@ -154,6 +154,142 @@ class ClaimsService {
     await claim.save();
     return claim.populate("influencer");
   }
+
+  // NEW: Fetch posts from all influencers and store as claims
+  async fetchAllInfluencerPosts(maxPostsPerInfluencer = 50) {
+    const { fetchRecentTweets } = require("../influencers/twitter");
+    const delay = require("../../helpers/delay");
+    
+    const influencers = await Influencer.find({});
+    const results = {
+      totalInfluencers: influencers.length,
+      totalPostsFetched: 0,
+      totalClaimsCreated: 0,
+      totalClaimsUpdated: 0,
+      rateLimitHit: false,
+      processedInfluencers: 0,
+      errors: []
+    };
+
+    for (const influencer of influencers) {
+      try {
+        // Fetch tweets from Twitter with retry logic
+        let tweets = [];
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            tweets = await fetchRecentTweets(influencer.handle, maxPostsPerInfluencer);
+            break; // Success, exit retry loop
+          } catch (err) {
+            if (err.response && err.response.status === 429) {
+              results.rateLimitHit = true;
+              
+              // Check rate limit reset time
+              const resetTime = err.response.headers['x-rate-limit-reset'];
+              if (resetTime) {
+                const waitTime = (parseInt(resetTime) * 1000) - Date.now();
+                const waitMinutes = Math.ceil(waitTime / 60000);
+                
+                console.log(`Rate limit hit. Waiting ${waitMinutes} minutes until reset...`);
+                
+                // If wait time is too long (>5 min), stop processing
+                if (waitTime > 300000) { // 5 minutes
+                  results.errors.push({
+                    influencer: influencer.handle,
+                    error: `Rate limit exceeded. Please wait ${waitMinutes} minutes and try again.`
+                  });
+                  return results; // Stop processing all influencers
+                }
+                
+                // Wait and retry
+                await delay(waitTime + 5000); // Add 5 second buffer
+                retryCount++;
+              } else {
+                // No reset time, wait default 15 minutes
+                results.errors.push({
+                  influencer: influencer.handle,
+                  error: "Rate limit exceeded. Please wait 15 minutes and try again."
+                });
+                return results; // Stop processing
+              }
+            } else {
+              throw err; // Re-throw non-rate-limit errors
+            }
+          }
+        }
+        
+        if (tweets.length === 0) {
+          results.errors.push({
+            influencer: influencer.handle,
+            error: "No tweets fetched after retries"
+          });
+          continue;
+        }
+
+        results.totalPostsFetched += tweets.length;
+        results.processedInfluencers++;
+
+        // Store posts in influencer document
+        influencer.posts = tweets;
+        await influencer.save();
+
+        // Create claims from tweets
+        for (const tweet of tweets) {
+          try {
+            // Check if claim already exists
+            let claim = await Claim.findOne({ postId: tweet.id });
+            
+            if (claim) {
+              // Update existing claim
+              claim.content = tweet.text;
+              claim.datePublished = new Date(tweet.createdAt);
+              await claim.save();
+              results.totalClaimsUpdated++;
+            } else {
+              // Create new claim (will be auto-verified if configured)
+              claim = await Claim.create({
+                postId: tweet.id,
+                influencer: influencer._id,
+                content: tweet.text,
+                category: influencer.category || "Health",
+                datePublished: new Date(tweet.createdAt),
+                sourceLinks: [`https://twitter.com/${influencer.handle}/status/${tweet.id}`],
+                verificationStatus: "pending",
+                confidenceScore: 0,
+                trustScore: 0
+              });
+              results.totalClaimsCreated++;
+            }
+          } catch (err) {
+            results.errors.push({
+              influencer: influencer.handle,
+              tweetId: tweet.id,
+              error: err.message
+            });
+          }
+        }
+
+        // Longer delay between influencers to avoid rate limits
+        await delay(3000); // 3 seconds between each influencer
+        
+      } catch (err) {
+        results.errors.push({
+          influencer: influencer.handle,
+          error: err.message
+        });
+        
+        // If it's a rate limit error, stop processing
+        if (err.response && err.response.status === 429) {
+          results.rateLimitHit = true;
+          return results;
+        }
+      }
+    }
+
+    return results;
+  }
 }
 
 module.exports = new ClaimsService();
