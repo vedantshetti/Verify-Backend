@@ -9,11 +9,13 @@ router.put("/:id", controller.update);
 router.get("/:id/posts", controller.getPosts);
 router.post("/:id/fetch", controller.fetchAndStorePosts);
 
-// NEW: Optional route to manually trigger all-profiles update
-router.post("/update-all-twitter", controller.updateAllProfilesFromTwitter);
+// NEW: Fetch health influencers from Twitter and store in DB
+router.post("/fetch-from-twitter", controller.fetchAndStoreFromTwitter);
 
-// these routes are for the cron job to update all profiles from Twitter
-// This is useful for testing or manual triggering
+// NEW: Fetch and analyze posts for specific influencer
+router.post("/:id/analyze-posts", controller.fetchAndAnalyzePosts);
+
+// NEW: Optional route to manually trigger all-profiles update
 router.post("/update-all-twitter", controller.updateAllProfilesFromTwitter);
 
 module.exports = router;
