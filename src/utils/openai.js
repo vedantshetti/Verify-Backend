@@ -188,7 +188,149 @@ async function verifyMultipleClaims(claims, delayMs = 1000) {
   return results;
 }
 
+/**
+ * Generate a comprehensive health topic research report using OpenAI
+ * @param {string} topic - The health topic to research (e.g., "keto diet", "CBD oil")
+ * @param {Array} selectedJournals - List of scientific journals to reference
+ * @returns {Object} - Comprehensive research report
+ */
+async function generateHealthTopicReport(topic, selectedJournals = []) {
+  try {
+    console.log(`🔬 Generating research report for topic: "${topic}"`);
+    
+    if (!OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    const journalsText = selectedJournals.length > 0 
+      ? `Focus on research from these journals: ${selectedJournals.join(", ")}.`
+      : "";
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a medical research expert and health information analyst. 
+Generate comprehensive, evidence-based research reports on health topics.
+
+Respond ONLY in valid JSON format with this exact structure:
+{
+  "scientificConsensus": "<3-4 sentence summary of current scientific consensus>",
+  "commonClaims": [
+    {
+      "claim": "<common claim about this topic>",
+      "isTrue": true/false,
+      "explanation": "<2-3 sentence explanation with evidence>"
+    }
+  ],
+  "riskFactors": ["<risk factor 1>", "<risk factor 2>", ...],
+  "considerations": ["<important consideration 1>", "<consideration 2>", ...],
+  "relevantJournals": [
+    {
+      "name": "<journal name>",
+      "relevance": "<why this journal is relevant for this topic>"
+    }
+  ],
+  "suggestedInfluencers": [
+    {
+      "name": "<influencer/expert name>",
+      "expertise": "<their area of expertise>",
+      "reason": "<why they're credible on this topic>"
+    }
+  ],
+  "summary": "<2-3 paragraph executive summary>",
+  "keyTakeaways": ["<key point 1>", "<key point 2>", ...]
+}
+
+Guidelines:
+1. Provide 5-8 common claims (mix of true and false)
+2. List 3-5 risk factors and considerations
+3. Suggest 3-5 relevant scientific journals
+4. Recommend 3-5 real or realistic health influencers/experts
+5. Include 4-6 key takeaways
+6. Be evidence-based and objective
+7. Focus on current scientific understanding
+8. Highlight controversies or debates if they exist`,
+          },
+          {
+            role: "user",
+            content: `Generate a comprehensive research report on the health topic: "${topic}"
+
+${journalsText}
+
+Include:
+1. Current scientific consensus
+2. Common claims people make (both true and false claims)
+3. Risk factors and safety considerations
+4. Relevant scientific journals for this topic
+5. Credible health influencers or experts who discuss this topic
+6. Executive summary and key takeaways
+
+Provide your report in the required JSON format.`,
+          },
+        ],
+        max_tokens: 2000,
+        temperature: 0.4,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 45000,
+      }
+    );
+
+    const content = response.data.choices[0].message.content.trim();
+    console.log("📥 OpenAI research report generated");
+
+    // Parse JSON response
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (parseError) {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[1]);
+      } else {
+        throw new Error("Failed to parse OpenAI response as JSON");
+      }
+    }
+
+    // Validate required fields
+    if (!parsed.scientificConsensus || !parsed.commonClaims || !parsed.summary) {
+      throw new Error("Invalid report structure from OpenAI");
+    }
+
+    console.log("✅ Research report parsed successfully");
+    console.log(`   - ${parsed.commonClaims.length} common claims analyzed`);
+    console.log(`   - ${parsed.suggestedInfluencers?.length || 0} influencers suggested`);
+
+    return {
+      success: true,
+      report: parsed,
+    };
+  } catch (error) {
+    console.error("❌ Error generating research report:", error.message);
+    
+    if (error.response) {
+      console.error("   OpenAI API error:", error.response.data);
+    }
+
+    return {
+      success: false,
+      error: error.message,
+      report: null,
+    };
+  }
+}
+
 module.exports = {
   verifyHealthClaim,
   verifyMultipleClaims,
+  generateHealthTopicReport,
 };
