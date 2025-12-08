@@ -186,3 +186,71 @@ exports.fetchInfluencerPosts = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// NEW: Verify a single claim using AI
+exports.verifyClaimWithAI = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const claim = await service.verifyClaimWithAI(id);
+    
+    res.json({
+      success: true,
+      message: "Claim verified successfully with AI",
+      data: claim
+    });
+  } catch (err) {
+    console.error("verifyClaimWithAI error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+};
+
+// NEW: Verify multiple claims using AI
+exports.verifyMultipleClaimsWithAI = async (req, res) => {
+  try {
+    const { claimIds } = req.body;
+    
+    if (!Array.isArray(claimIds) || claimIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "claimIds array is required"
+      });
+    }
+    
+    const results = await service.verifyMultipleClaimsWithAI(claimIds);
+    
+    res.json({
+      success: true,
+      message: `Verified ${results.verifiedClaims} of ${results.totalClaims} claims`,
+      data: results
+    });
+  } catch (err) {
+    console.error("verifyMultipleClaimsWithAI error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+};
+
+// NEW: Verify all pending claims
+exports.verifyAllPendingClaims = async (req, res) => {
+  try {
+    const { limit } = req.body;
+    const results = await service.verifyAllPendingClaims(limit || 10);
+    
+    res.json({
+      success: true,
+      message: results.message || `Verified ${results.verifiedClaims || 0} pending claims`,
+      data: results
+    });
+  } catch (err) {
+    console.error("verifyAllPendingClaims error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+};
