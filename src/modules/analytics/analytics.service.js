@@ -58,24 +58,39 @@ class AnalyticsService {
   async getSummary() {
     const totalInfluencers = await Influencer.countDocuments();
     const totalClaims = await Claim.countDocuments();
+    
+    // Count claims by verification status
     const verifiedClaims = await Claim.countDocuments({
       verificationStatus: "verified",
     });
     const pendingClaims = await Claim.countDocuments({
+      verificationStatus: "pending",
+    });
+    const questionableClaims = await Claim.countDocuments({
       verificationStatus: "questionable",
     });
+    const debunkedClaims = await Claim.countDocuments({
+      verificationStatus: "debunked",
+    });
+    
+    // Calculate average trust score
     const avgTrustScore = await Influencer.aggregate([
       { $group: { _id: null, avg: { $avg: "$trustScore" } } },
     ]);
+    
     return {
+      // Main dashboard stats
       activeInfluencers: totalInfluencers, // Total influencers in database
       claimsVerified: verifiedClaims, // Claims that have been verified
       averageTrustScore: avgTrustScore[0]?.avg?.toFixed(1) || "0.0",
-      // Additional stats
+      
+      // Additional detailed stats
       totalInfluencers,
       totalClaims,
       verifiedClaims,
       pendingClaims,
+      questionableClaims,
+      debunkedClaims,
       avgTrustScore: avgTrustScore[0]?.avg || 0,
     };
   }
@@ -83,6 +98,7 @@ class AnalyticsService {
   async getInfluencerAnalytics(influencerId) {
     const influencer = await Influencer.findById(influencerId);
     const claims = await Claim.find({ influencer: influencerId });
+    
     const verified = claims.filter(
       (c) => c.verificationStatus === "verified"
     ).length;
@@ -92,12 +108,17 @@ class AnalyticsService {
     const questionable = claims.filter(
       (c) => c.verificationStatus === "questionable"
     ).length;
+    const pending = claims.filter(
+      (c) => c.verificationStatus === "pending"
+    ).length;
+    
     return {
       influencer,
       totalClaims: claims.length,
       verified,
       debunked,
       questionable,
+      pending,
       averageTrustScore: claims.length
         ? (
             claims.reduce((sum, c) => sum + (c.trustScore || 0), 0) /
@@ -105,6 +126,39 @@ class AnalyticsService {
           ).toFixed(1)
         : 0,
     };
+  }
+
+  async getClaimStats() {
+    // Aggregate claim statistics
+    const stats = await Claim.aggregate([
+      {
+        $group: {
+          _id: "$verificationStatus",
+          count: { $sum: 1 },
+          avgTrustScore: { $avg: "$trustScore" },
+          avgConfidenceScore: { $avg: "$confidenceScore" },
+        },
+      },
+    ]);
+
+    const statsMap = {
+      verified: { count: 0, avgTrustScore: 0, avgConfidenceScore: 0 },
+      pending: { count: 0, avgTrustScore: 0, avgConfidenceScore: 0 },
+      questionable: { count: 0, avgTrustScore: 0, avgConfidenceScore: 0 },
+      debunked: { count: 0, avgTrustScore: 0, avgConfidenceScore: 0 },
+    };
+
+    stats.forEach((stat) => {
+      if (stat._id && statsMap[stat._id]) {
+        statsMap[stat._id] = {
+          count: stat.count,
+          avgTrustScore: stat.avgTrustScore?.toFixed(1) || 0,
+          avgConfidenceScore: stat.avgConfidenceScore?.toFixed(1) || 0,
+        };
+      }
+    });
+
+    return statsMap;
   }
 }
 

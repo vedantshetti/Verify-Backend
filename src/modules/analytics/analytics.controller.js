@@ -24,3 +24,9 @@ exports.influencer = async (req, res) => {
   const data = await service.getInfluencerAnalytics(req.params.id);
   res.json({ success: true, data });
 };
+
+exports.claimStats = async (req, res) => {
+  const data = await service.getClaimStats();
+  res.json({ success: true, data });
+};
+

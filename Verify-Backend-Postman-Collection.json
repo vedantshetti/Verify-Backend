@@ -771,6 +771,25 @@
           "response": []
         },
         {
+          "name": "Get Claim Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/claim-stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "claim-stats"]
+            },
+            "description": "Get detailed statistics about claims breakdown by verification status (verified, pending, questionable, debunked) with average trust and confidence scores"
+          },
+          "response": []
+        },
+        {
           "name": "Get Influencer Analytics",
           "request": {
             "method": "GET",
