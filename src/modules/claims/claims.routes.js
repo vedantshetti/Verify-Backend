@@ -16,4 +16,9 @@ router.post("/fetch-all-posts", controller.fetchAllInfluencerPosts);
 // NEW: Fetch posts from a single influencer
 router.post("/fetch-influencer-posts/:influencerId", controller.fetchInfluencerPosts);
 
+// NEW: AI Verification endpoints
+router.post("/:id/verify-ai", controller.verifyClaimWithAI);
+router.post("/verify-multiple-ai", controller.verifyMultipleClaimsWithAI);
+router.post("/verify-pending-ai", controller.verifyAllPendingClaims);
+
 module.exports = router;

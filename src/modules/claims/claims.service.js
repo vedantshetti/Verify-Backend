@@ -1,6 +1,7 @@
 const Claim = require("./claims.model");
 const Influencer = require("../influencers/influencers.model");
 const { verifyClaimWithOpenAI } = require("../../utils/perplexity"); // Utility for Perplexity API
+const { verifyHealthClaim, verifyMultipleClaims } = require("../../utils/openai"); // OpenAI verification
 
 class ClaimsService {
   async list(query) {
@@ -289,6 +290,120 @@ class ClaimsService {
     }
 
     return results;
+  }
+
+  /**
+   * Verify a single claim using OpenAI
+   */
+  async verifyClaimWithAI(claimId) {
+    const claim = await Claim.findById(claimId);
+    if (!claim) {
+      throw new Error("Claim not found");
+    }
+
+    // Use OpenAI to verify the claim
+    const verification = await verifyHealthClaim(claim.content);
+
+    // Update claim with verification results
+    claim.verificationStatus = verification.verificationStatus;
+    claim.confidenceScore = verification.confidenceScore;
+    claim.trustScore = verification.trustScore;
+    claim.scientificReferences = verification.scientificReferences || [];
+    claim.verifiedAt = verification.verifiedAt;
+    
+    await claim.save();
+
+    // Update influencer's trust score if claim is verified
+    await this.updateInfluencerTrustScore(claim.influencer);
+
+    return claim.populate("influencer");
+  }
+
+  /**
+   * Batch verify multiple claims using OpenAI
+   */
+  async verifyMultipleClaimsWithAI(claimIds) {
+    const claims = await Claim.find({ _id: { $in: claimIds } });
+    
+    if (claims.length === 0) {
+      throw new Error("No claims found");
+    }
+
+    const results = await verifyMultipleClaims(claims, 2000); // 2 second delay between calls
+
+    // Update each claim in database
+    const updatedClaims = [];
+    for (const result of results) {
+      const claim = claims.find(c => c._id.toString() === result.claimId.toString());
+      if (claim && !result.error) {
+        claim.verificationStatus = result.verificationStatus;
+        claim.confidenceScore = result.confidenceScore;
+        claim.trustScore = result.trustScore;
+        claim.scientificReferences = result.scientificReferences || [];
+        claim.verifiedAt = result.verifiedAt;
+        
+        await claim.save();
+        updatedClaims.push(claim);
+
+        // Update influencer trust score
+        await this.updateInfluencerTrustScore(claim.influencer);
+      }
+    }
+
+    return {
+      totalClaims: claims.length,
+      verifiedClaims: updatedClaims.length,
+      claims: updatedClaims
+    };
+  }
+
+  /**
+   * Verify all pending claims in the database
+   */
+  async verifyAllPendingClaims(limit = 10) {
+    const pendingClaims = await Claim.find({ 
+      verificationStatus: "pending" 
+    }).limit(limit);
+
+    if (pendingClaims.length === 0) {
+      return {
+        message: "No pending claims to verify",
+        totalVerified: 0
+      };
+    }
+
+    const claimIds = pendingClaims.map(c => c._id);
+    return await this.verifyMultipleClaimsWithAI(claimIds);
+  }
+
+  /**
+   * Update influencer's trust score based on their verified claims
+   */
+  async updateInfluencerTrustScore(influencerId) {
+    const influencer = await Influencer.findById(influencerId);
+    if (!influencer) return;
+
+    // Get all claims for this influencer
+    const allClaims = await Claim.find({ influencer: influencerId });
+    const verifiedClaims = allClaims.filter(c => c.verificationStatus === "verified");
+    
+    // Update verified claims count
+    influencer.verifiedClaims = verifiedClaims.length;
+    // Note: posts field is an array of tweet objects, not a count
+    // We don't update it here since it's managed by the Twitter fetching logic
+
+    // Calculate average trust score from all claims (not just verified)
+    if (allClaims.length > 0) {
+      const totalTrustScore = allClaims.reduce((sum, claim) => {
+        return sum + (claim.trustScore || 0);
+      }, 0);
+      influencer.trustScore = Math.round(totalTrustScore / allClaims.length);
+    } else {
+      influencer.trustScore = 0;
+    }
+
+    await influencer.save();
+    return influencer;
   }
 }
 

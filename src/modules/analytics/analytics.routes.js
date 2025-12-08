@@ -6,6 +6,7 @@ router.get("/leaderboard", controller.leaderboard);
 router.get("/trends", controller.trends);
 router.get("/categories", controller.categories);
 router.get("/summary", controller.summary);
+router.get("/claim-stats", controller.claimStats);
 router.get("/influencer/:id", controller.influencer);
 
 module.exports = router;
