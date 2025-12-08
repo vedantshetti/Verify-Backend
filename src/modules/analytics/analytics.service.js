@@ -2,11 +2,12 @@ const Influencer = require("../influencers/influencers.model");
 const Claim = require("../claims/claims.model");
 
 class AnalyticsService {
-  async getLeaderboard({ category, sortBy = "trustScore", limit = 20 }) {
+  async getLeaderboard({ category, sortBy = "trustScore", order = "desc", limit = 20 }) {
     const filter = {};
     if (category && category !== "all") filter.category = category;
+    const sortOrder = order === "asc" ? 1 : -1;
     return Influencer.find(filter)
-      .sort({ [sortBy]: -1 })
+      .sort({ [sortBy]: sortOrder })
       .limit(limit)
       .select(
         "name handle category image followers trustScore verifiedClaims trend"
@@ -52,7 +53,9 @@ class AnalyticsService {
       },
       { $sort: { total: -1 } },
     ];
-    return Claim.aggregate(pipeline);
+    const results = await Claim.aggregate(pipeline);
+    // Return array of unique category names for the filter dropdown
+    return results.map(r => r._id).filter(cat => cat); // filter out null/undefined
   }
 
   async getSummary() {
